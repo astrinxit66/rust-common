@@ -30,9 +30,9 @@ pub mod certs {
     where P: AsRef<Path> {
 println!("##### pk_file is: {:?}", pk_file.as_ref().as_os_str());
         let certs = certs::from_file_path(cert_file)?;
-        let mut pkeys = certs::pk_from_path(pk_file)?;
+        let mut pkeys = certs::pk_from_path(&pk_file)?;
 println!(">>>>> certificates: {:?}", certs);
-println!(">>>>> private keys: {:?}", pkeys);
+println!(">>>>> private keys: {:?}", certs::pk_from_path(pk_file));
         let mut cfg = ServerConfig::new(NoClientAuth::new());
 
         cfg
