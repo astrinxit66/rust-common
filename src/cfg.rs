@@ -28,9 +28,11 @@ pub mod certs {
 
     pub fn tls_cfg<P>(cert_file: P, pk_file: P) -> io::Result<ServerConfig> 
     where P: AsRef<Path> {
+println!("##### pk_file is: {:?}", pk_file.as_ref().as_os_str());
         let certs = certs::from_file_path(cert_file)?;
         let mut pkeys = certs::pk_from_path(pk_file)?;
-
+println!(">>>>> certificates: {:?}", certs);
+println!(">>>>> private keys: {:?}", pkeys);
         let mut cfg = ServerConfig::new(NoClientAuth::new());
 
         cfg
