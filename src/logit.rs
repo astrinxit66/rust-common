@@ -278,7 +278,7 @@ impl Appender for FileAppender {
     fn flush(&self) {
         task::block_on(async {
             if let Some(tx) = &self.tx {
-                tx.send(FileAppender::SIGKILL).expect("should free FileAppender's writer thread");
+                tx.send(FileAppender::SIGKILL).expect("should free FileAppender's writer task");
                 
                 let apdr = self.apdr.write().await;
                 let mut buf = apdr.buf.write().await;
