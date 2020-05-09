@@ -1,4 +1,4 @@
-pub mod logger;
+pub mod logit;
 pub mod cfg;
 pub mod codec;
 

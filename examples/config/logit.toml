@@ -1,0 +1,13 @@
+verbosity = "debug"
+
+file_apdrs = [
+    { verbosity = "info", sources = ["example", "source2"], target = "./examples/out/logit/example_info.log", bytes_rotation_size = 307200 },
+    { verbosity = "error", sources = ["example"], target = "./examples/out/logit/example_error.log", time_format = "%a %b %e %T %Y", bytes_rotation_size = 307200 },
+    { verbosity = "error", sources = ["source3"], target = "./examples/out/logit/example_error.log", bytes_rotation_size = 307200 },
+
+]
+
+term_apdrs = [
+    { sources = ["example", "source1"], verbosity = "info" },
+    { sources = ["source3"], verbosity = "warn" } 
+]
