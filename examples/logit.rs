@@ -17,7 +17,6 @@ fn main() {
     trace!(target: SOURCE1,"should be a noop");
     trace!(target: SOURCE2,"should be a noop");
     
-
     debug!("should be displayed on the terminal which is the default Logit appender");
     info!("should be displayed on the terminal which is the default Logit appender");
     warn!("should be displayed on the terminal which is the default Logit appender");
