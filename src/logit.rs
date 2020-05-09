@@ -29,7 +29,7 @@ const FILE_DATE_FMT: &str = "%Y_%m_%d";
 
 type TripleTgtLvlMsg = (String, String, String);
 
-pub trait Appender: Sync + Send {
+trait Appender: Sync + Send {
     fn cx(&self) -> &Vec<String>;
     fn delegate(&self, rec: &Record);
     fn init(&mut self) {}
@@ -40,7 +40,7 @@ pub fn init<P>(cfg: P) -> Result<LogHandle, SetLoggerError>
 where P: AsRef<Path> {
     let cfg = cfg.as_ref();
     let log_cfg: LogitCfg = super::cfg::from_toml_path(super::path::from_app_root(cfg.to_str().unwrap()))
-        .expect(format!("Logger cfg file {} exists and be readable", cfg.display()).as_str());
+        .expect(&format!("Logger cfg file {} exists and be readable", cfg.display()));
     let verbosity = log_cfg.verbosity;
 
     let file_apdrs = if log_cfg.file_apdrs.is_some() {
@@ -57,13 +57,13 @@ where P: AsRef<Path> {
             .collect()
     } else { vec![] };
 
-    let appenders: Arc<SyncRwLock<Vec<Box<dyn Appender>>>> = Arc::new(SyncRwLock::new(Vec::new()));
+    let appenders = Arc::new(SyncRwLock::new(Vec::new()));
     
     Ok(task::block_on(async {
-        let mut lock = appenders.write().unwrap();
-        lock.extend(file_apdrs);
-        lock.extend(term_apdrs);
-        lock.iter_mut().for_each(|apdr: &mut Box<dyn Appender>| apdr.init());
+        let mut apdrs_guard = appenders.write().unwrap();
+        apdrs_guard.extend(file_apdrs);
+        apdrs_guard.extend(term_apdrs);
+        apdrs_guard.iter_mut().for_each(|apdr: &mut Box<dyn Appender>| apdr.init());
 
         let logger = {
             let mut cx: Vec<String> = vec![];
@@ -72,11 +72,11 @@ where P: AsRef<Path> {
                 verbosity: Some(DEF_VERBOSITY)
             }, true);
 
-            lock.iter().for_each(|apdr| cx.extend(apdr.cx().iter().cloned()));
+            apdrs_guard.iter().for_each(|apdr| cx.extend(apdr.cx().iter().cloned()));
             Logit {cx, default_appender, appenders: appenders.clone()}
         };
 
-        std::mem::drop(lock);
+        std::mem::drop(apdrs_guard);
 
         let handle = LogHandle(appenders);
 
@@ -91,7 +91,6 @@ pub struct LogHandle(Arc<SyncRwLock<Vec<Box<dyn Appender>>>>);
 
 impl Drop for LogHandle {
     fn drop(&mut self) {
-println!(">>> dropping LogHandle, flush all appenders");
         let apdrs = self.0.read().unwrap();
         apdrs.iter().for_each(|apdr| apdr.flush());
     }
@@ -100,7 +99,7 @@ println!(">>> dropping LogHandle, flush all appenders");
 struct Logit {
     cx: Vec<String>,
     default_appender: TermAppender,
-    appenders: Arc<SyncRwLock<Vec<Box<dyn Appender>>>>
+    appenders: Arc<SyncRwLock<Vec<Box<dyn Appender>>>>,
 }
 
 #[derive(Deserialize)]
@@ -122,7 +121,7 @@ struct FileAppenderCfg {
 #[derive(Deserialize)]
 struct TermAppenderCfg {
     sources: Vec<String>,
-    verbosity: Option<LevelFilter>
+    verbosity: Option<LevelFilter>,
 }
 
 struct AsyncFileAppender {
@@ -132,14 +131,14 @@ struct AsyncFileAppender {
     filename_mask: (String, String),
     bytes_rotation_size: Option<u64>,
     bytes_current_size: u64,
-    today: Date<Utc>
+    today: Date<Utc>,
 }
 
 struct FileAppender {
     cx: Vec<String>,
     tx: Option<Sender<TripleTgtLvlMsg>>,
     verbosity: LevelFilter,
-    apdr: Arc<RwLock<AsyncFileAppender>>
+    apdr: Arc<RwLock<AsyncFileAppender>>,
 }
 
 struct TermAppender {
@@ -215,7 +214,7 @@ impl Appender for TermAppender {
                 &format!("{}", *rec.args()),
                 None
             ))
-            .expect("write to TermAppender's");
+            .expect("write to TermAppender's output");
         }
     }
 }
@@ -251,7 +250,7 @@ impl Appender for FileAppender {
             let mut apdr = apdr.write().await;
 
             loop {
-                if let Ok(log) =rx.recv() {
+                if let Ok(log) = rx.recv() {
                     if log == FileAppender::SIGKILL {
                         std::mem::drop(apdr);
                         break;
@@ -279,7 +278,7 @@ impl Appender for FileAppender {
     fn flush(&self) {
         task::block_on(async {
             if let Some(tx) = &self.tx {
-                tx.send(FileAppender::SIGKILL).expect("should send SIGKILL");
+                tx.send(FileAppender::SIGKILL).expect("should free FileAppender's writer thread");
                 
                 let apdr = self.apdr.write().await;
                 let mut buf = apdr.buf.write().await;
@@ -370,7 +369,7 @@ impl AsyncFileAppender {
         OpenOptions::new()
             .read(true)
             .open(path).await
-            .expect(format!("{} should exist and be readable", path.to_str().unwrap()).as_str())
+            .expect(&format!("{} should exist and be readable", path.to_str().unwrap()))
             .metadata().await.unwrap()
             .len()
     }
@@ -410,7 +409,7 @@ impl AsyncFileAppender {
             let mut path_buf = self.path.clone();
             let (new_filename, today) = AsyncFileAppender::dated_filename(&self.filename_mask, None);
 
-            path_buf.set_file_name(OsStr::new(new_filename.as_str()));
+            path_buf.set_file_name(OsStr::new(&new_filename));
 
             self.today = today;
             self.rotate(&path_buf, true).await;
