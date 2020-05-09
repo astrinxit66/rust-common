@@ -9,6 +9,7 @@ const SOURCE2: &str = "source2";
 const SOURCE3: &str = "source3";
 
 fn main() {
+    #![allow(unused_variables)]
     let log_handle = logit::init("examples/config/logit.toml").expect("init logit as log implementation");
 
     trace!("should be a noop");
